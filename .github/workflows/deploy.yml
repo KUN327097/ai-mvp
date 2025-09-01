@@ -5,6 +5,10 @@ on:
     branches:
       - main # 确保这是您的主分支名
 
+# 新增：为工作流授予写入内容的权限
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
