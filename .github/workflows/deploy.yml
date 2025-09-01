@@ -17,24 +17,31 @@ jobs:
 
       - name: Inject Firebase Config via Python 💉
         env:
-          # 我们只需要 config, 不再需要 auth token
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
         run: |
           python -c "
           import os
           import sys
+          import json
 
           html_file_path = 'index.html' 
           placeholder = ''
 
-          firebase_config = os.environ.get('FIREBASE_CONFIG')
+          firebase_config_str = os.environ.get('FIREBASE_CONFIG')
 
-          if not firebase_config:
+          if not firebase_config_str:
               print('::error title=Secret Missing::FIREBASE_CONFIG secret is not set!')
               sys.exit(1)
+          
+          # 验证 secret 是否为有效的 JSON
+          try:
+              json.loads(firebase_config_str)
+          except json.JSONDecodeError:
+              print(f'::error title=Invalid JSON::FIREBASE_CONFIG secret is not a valid JSON object. Please check what you pasted in GitHub Secrets.')
+              sys.exit(1)
 
-          # 只注入config, 登录将完全通过匿名方式进行
-          js_block = f\"<script>window.__firebase_config = {firebase_config};<\/script>\"
+          # 将配置信息安全地包装成一个字符串，交由客户端解析
+          js_block = f\"<script>try {{ window.__firebase_config = JSON.parse('{firebase_config_str}'); }} catch (e) {{ console.error('Failed to parse Firebase config:', e); document.body.innerHTML = 'Firebase配置信息格式错误，请检查GitHub Secrets。'; }}<\/script>\"
 
           try:
               with open(html_file_path, 'r', encoding='utf-8') as f:
@@ -52,7 +59,7 @@ jobs:
           with open(html_file_path, 'w', encoding='utf-8') as f:
               f.write(new_content)
 
-          print('Firebase config successfully injected.')
+          print('Firebase config successfully and safely injected.')
           "
           
       - name: Deploy 🚀
