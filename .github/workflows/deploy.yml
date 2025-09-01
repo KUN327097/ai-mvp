@@ -5,7 +5,6 @@ on:
     branches:
       - main # 确保这是您的主分支名
 
-# 新增：为工作流授予写入内容的权限
 permissions:
   contents: write
 
@@ -18,36 +17,34 @@ jobs:
 
       - name: Inject Firebase Config via Python 💉
         env:
+          # 我们只需要 config, 不再需要 auth token
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
-          FIREBASE_AUTH_TOKEN: ${{ secrets.FIREBASE_AUTH_TOKEN }}
         run: |
           python -c "
           import os
           import sys
 
-          html_file_path = 'index.html' # 确保这是您的HTML文件名
+          html_file_path = 'index.html' 
           placeholder = ''
 
           firebase_config = os.environ.get('FIREBASE_CONFIG')
-          auth_token = os.environ.get('FIREBASE_AUTH_TOKEN')
 
           if not firebase_config:
               print('::error title=Secret Missing::FIREBASE_CONFIG secret is not set!')
               sys.exit(1)
 
-          # The config is a JSON object, the token is a string
-          # This creates the script tag to be injected into the HTML
-          js_block = f\"<script>window.__firebase_config = {firebase_config}; window.__initial_auth_token = '{auth_token}';<\/script>\"
+          # 只注入config, 登录将完全通过匿名方式进行
+          js_block = f\"<script>window.__firebase_config = {firebase_config};<\/script>\"
 
           try:
               with open(html_file_path, 'r', encoding='utf-8') as f:
                   content = f.read()
           except FileNotFoundError:
-              print(f'::error title=File Not Found::Cannot find the file {html_file_path} in the repository.')
+              print(f'::error title=File Not Found::Cannot find {html_file_path}.')
               sys.exit(1)
 
           if placeholder not in content:
-              print(f'::error title=Placeholder Missing::Placeholder \"{placeholder}\" not found in {html_file_path}! Make sure your HTML file is up to date.')
+              print(f'::error title=Placeholder Missing::Placeholder not found in {html_file_path}.')
               sys.exit(1)
               
           new_content = content.replace(placeholder, js_block)
@@ -55,7 +52,7 @@ jobs:
           with open(html_file_path, 'w', encoding='utf-8') as f:
               f.write(new_content)
 
-          print('Secrets successfully injected into the HTML file.')
+          print('Firebase config successfully injected.')
           "
           
       - name: Deploy 🚀
