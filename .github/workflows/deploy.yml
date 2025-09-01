@@ -1,0 +1,39 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # 确保这是您的主分支名
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Build and Deploy 🚀
+        run: |
+          # 找到HTML文件, 如果您的文件名不是index.html, 请在这里修改
+          html_file="index.html" 
+
+          # 读取Firebase配置和Token Secrets
+          firebase_config='${{ secrets.FIREBASE_CONFIG }}'
+          auth_token='${{ secrets.FIREBASE_AUTH_TOKEN }}'
+
+          # 创建要插入的脚本块
+          js_block="<script> window.__firebase_config = JSON.stringify(${firebase_config}); window.__initial_auth_token = '${auth_token}'; <\/script>"
+          
+          # 使用sed命令找到占位符并替换为脚本块
+          sed -i.bak "s|<!-- GITHUB_ACTIONS_REPLACEMENT_BLOCK -->|${js_block}|" "$html_file"
+          
+          # 部署目录准备
+          # 我们直接在根目录操作，因为gh-pages action可以指定发布文件
+          # 如果您的仓库只有一个html文件，就不需要复杂的目录移动了
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ # 发布整个仓库的根目录
+          # 注意：此处的设置假设您的仓库根目录就是您想发布的网站内容
