@@ -6,34 +6,40 @@ on:
       - main # 确保这是您的主分支名
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
 
-      - name: Build and Deploy 🚀
+      - name: Inject Firebase Config 💉
+        # 将Secrets作为环境变量传入，这是更安全、更稳定的做法
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+          FIREBASE_AUTH_TOKEN: ${{ secrets.FIREBASE_AUTH_TOKEN }}
         run: |
-          # 找到HTML文件, 如果您的文件名不是index.html, 请在这里修改
-          html_file="index.html" 
-
-          # 读取Firebase配置和Token Secrets
-          firebase_config='${{ secrets.FIREBASE_CONFIG }}'
-          auth_token='${{ secrets.FIREBASE_AUTH_TOKEN }}'
-
-          # 创建要插入的脚本块
-          js_block="<script> window.__firebase_config = JSON.stringify(${firebase_config}); window.__initial_auth_token = '${auth_token}'; <\/script>"
+          # 检查Secrets是否已设置，如果未设置则报错退出
+          if [ -z "$FIREBASE_CONFIG" ]; then
+            echo "错误：FIREBASE_CONFIG secret 未设置!"
+            exit 1
+          fi
           
-          # 使用sed命令找到占位符并替换为脚本块
-          sed -i.bak "s|<!-- GITHUB_ACTIONS_REPLACEMENT_BLOCK -->|${js_block}|" "$html_file"
+          # 定义要修改的HTML文件名
+          HTML_FILE="index.html"
           
-          # 部署目录准备
-          # 我们直接在根目录操作，因为gh-pages action可以指定发布文件
-          # 如果您的仓库只有一个html文件，就不需要复杂的目录移动了
-
-      - name: Deploy to GitHub Pages
+          # 创建要注入的JS代码块
+          # FIREBASE_CONFIG应该是原始的JSON对象, 例如 { "apiKey": "..." }
+          # FIREBASE_AUTH_TOKEN是一个字符串，所以需要引号
+          JS_BLOCK="<script>window.__firebase_config = ${FIREBASE_CONFIG}; window.__initial_auth_token = '${FIREBASE_AUTH_TOKEN}';<\/script>"
+          
+          # 使用一个临时文件来处理替换，以避免特殊字符导致sed命令出错
+          echo "$JS_BLOCK" > replacement.txt
+          
+          # 替换占位符。这种方法比简单的单行sed命令更可靠
+          sed -i.bak -e "//r replacement.txt" -e "//d" $HTML_FILE
+          
+      - name: Deploy 🚀
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ # 发布整个仓库的根目录
-          # 注意：此处的设置假设您的仓库根目录就是您想发布的网站内容
+          publish_dir: ./ # 发布整个根目录，因为index.html就在这里
