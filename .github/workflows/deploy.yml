@@ -27,7 +27,7 @@ jobs:
           html_file_path = 'index.html' 
           placeholder = ''
 
-          firebase_config_str = os.environ.get('FIREBASE_CONFIG')
+          firebase_config_str = os.environ.get('FIREBASE_CONFIG', '').strip()
 
           if not firebase_config_str:
               print('::error title=Secret Missing::FIREBASE_CONFIG secret is not set!')
