@@ -142,21 +142,19 @@
         function viewReport(taskId) {
             const task = evaluations.find(t => t.id === taskId);
             if (!task || !task.reportData) return;
-
             const leftColumnHtml = task.reportData.results.map((result, index) => {
                 const getAvgScore = (scores) => (Object.values(scores).reduce((a, b) => a + b, 0) / Object.values(scores).length).toFixed(1);
                 const modelAAvgScore = getAvgScore(result.modelA_referee.scores);
                 const modelBAvgScore = getAvgScore(result.modelB_referee.scores);
                 return `<div class="evaluation-block pt-8 pb-12 border-b border-slate-200 last:border-b-0" data-index="${index}"><div class="border border-slate-200 rounded-lg overflow-hidden"><button class="accordion-toggle w-full p-4 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition"><div class="text-left"><h5 class="font-semibold text-slate-800">${task.modelA} 评测</h5><p class="text-xs text-slate-500 mt-1 italic">“${result.modelA_referee.summary}”</p></div><div class="text-right ml-4 flex-shrink-0"><div class="text-xs text-slate-500">综合得分</div><div class="font-bold text-lg text-blue-600">${modelAAvgScore}</div></div></button></div><div class="border border-slate-200 rounded-lg overflow-hidden mt-4"><button class="accordion-toggle w-full p-4 flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition"><div class="text-left"><h5 class="font-semibold text-slate-800">${task.modelB} 评测</h5><p class="text-xs text-slate-500 mt-1 italic">“${result.modelB_referee.summary}”</p></div><div class="text-right ml-4 flex-shrink-0"><div class="text-xs text-slate-500">综合得分</div><div class="font-bold text-lg text-indigo-600">${modelBAvgScore}</div></div></button></div></div>`;
             }).join('');
-
             modalContentContainer.innerHTML = `<div class="bg-white p-6"><h3 class="text-2xl font-bold text-slate-900">报告: ${task.modelA} vs ${task.modelB}</h3><p class="text-sm text-slate-500 mt-1">共评测 ${task.reportData.questionCount} 个问题</p><div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"><div class="report-scroll-container max-h-[65vh] overflow-y-auto pr-4 -mr-4">${leftColumnHtml}</div><div class="hidden lg:block"><div class="sticky top-6"><div id="sticky-question-content"></div></div></div></div></div>`;
             detailsModal.classList.remove('hidden');
 
             setTimeout(() => {
                 const scrollContainer = modalContentContainer.querySelector('.report-scroll-container');
                 const stickyContent = modalContentContainer.querySelector('#sticky-question-content');
-                if (!scrollContainer || !stickyContent) { console.error("Report containers not found!"); return; }
+                if (!scrollContainer || !stickyContent) { return; }
                 const evaluationBlocks = modalContentContainer.querySelectorAll('.evaluation-block');
                 const updateStickyContent = (index) => {
                     const result = task.reportData.results[index];
@@ -263,4 +261,3 @@
     </script>
 </body>
 </html>
-```
