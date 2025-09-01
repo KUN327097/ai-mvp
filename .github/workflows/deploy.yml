@@ -12,34 +12,50 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
 
-      - name: Inject Firebase Config 💉
-        # 将Secrets作为环境变量传入，这是更安全、更稳定的做法
+      - name: Inject Firebase Config via Python 💉
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
           FIREBASE_AUTH_TOKEN: ${{ secrets.FIREBASE_AUTH_TOKEN }}
         run: |
-          # 检查Secrets是否已设置，如果未设置则报错退出
-          if [ -z "$FIREBASE_CONFIG" ]; then
-            echo "错误：FIREBASE_CONFIG secret 未设置!"
-            exit 1
-          fi
-          
-          # 定义要修改的HTML文件名
-          HTML_FILE="index.html"
-          
-          # 创建要注入的JS代码块
-          # FIREBASE_CONFIG应该是原始的JSON对象, 例如 { "apiKey": "..." }
-          # FIREBASE_AUTH_TOKEN是一个字符串，所以需要引号
-          JS_BLOCK="<script>window.__firebase_config = ${FIREBASE_CONFIG}; window.__initial_auth_token = '${FIREBASE_AUTH_TOKEN}';<\/script>"
-          
-          # 使用一个临时文件来处理替换，以避免特殊字符导致sed命令出错
-          echo "$JS_BLOCK" > replacement.txt
-          
-          # 替换占位符。这种方法比简单的单行sed命令更可靠
-          sed -i.bak -e "//r replacement.txt" -e "//d" $HTML_FILE
+          python -c "
+          import os
+          import sys
+
+          html_file_path = 'index.html' # 确保这是您的HTML文件名
+          placeholder = ''
+
+          firebase_config = os.environ.get('FIREBASE_CONFIG')
+          auth_token = os.environ.get('FIREBASE_AUTH_TOKEN')
+
+          if not firebase_config:
+              print('::error title=Secret Missing::FIREBASE_CONFIG secret is not set!')
+              sys.exit(1)
+
+          # The config is a JSON object, the token is a string
+          # This creates the script tag to be injected into the HTML
+          js_block = f\"<script>window.__firebase_config = {firebase_config}; window.__initial_auth_token = '{auth_token}';<\/script>\"
+
+          try:
+              with open(html_file_path, 'r', encoding='utf-8') as f:
+                  content = f.read()
+          except FileNotFoundError:
+              print(f'::error title=File Not Found::Cannot find the file {html_file_path} in the repository.')
+              sys.exit(1)
+
+          if placeholder not in content:
+              print(f'::error title=Placeholder Missing::Placeholder \"{placeholder}\" not found in {html_file_path}! Make sure your HTML file is up to date.')
+              sys.exit(1)
+              
+          new_content = content.replace(placeholder, js_block)
+
+          with open(html_file_path, 'w', encoding='utf-8') as f:
+              f.write(new_content)
+
+          print('Secrets successfully injected into the HTML file.')
+          "
           
       - name: Deploy 🚀
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ # 发布整个根目录，因为index.html就在这里
+          publish_dir: ./
